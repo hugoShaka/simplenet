@@ -29,8 +29,6 @@ Arguments:
 
 import logging
 
-from logging.handlers import RotatingFileHandler
-
 import docopt
 
 
@@ -49,6 +47,9 @@ def switch(name, interfaces):
     """
     log = logging.getLogger()
     log.info("Creating switch %s linking %r", name, interfaces)
+    # brctl addbr name
+    # brctl setfd 0
+    # brctl addif eth0, eth1
 
 
 def nat():
@@ -56,6 +57,9 @@ def nat():
     log = logging.getLogger()
     log.info("Creating Nat")
     raise NotImplementedError("Nat not implemented")
+    # echo 1 > /proc/sys/net/ipv4/ip_forward
+    # iptables -t nat -A POSTROUTING -o destination -j MASQUERADE
+    # iptables -A FORWARD -i brname -j ACCEPT
 
 
 def dhcp():
@@ -78,7 +82,7 @@ def main():
     log.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter("%(asctime)s :: %(levelname)s :: %(message)s")
-    file_handler = RotatingFileHandler("simplenet.log", "a", 1000000, 1)
+    file_handler = logging.FileHandler("simplenet.log")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     log.addHandler(file_handler)
@@ -91,16 +95,17 @@ def main():
     args = docopt.docopt(__doc__)
     log.debug(args)
 
-    if args['switch']:
-        if args['--with-ip']:
+    if args["switch"]:
+        if args["--with-ip"]:
             raise NotImplementedError("--with-ip not available yet")
-        switch(args['--name'], args['<interface>'])
+        switch(args["--name"], args["<interface>"])
 
-    if args['nat']:
+    if args["nat"]:
         nat()
 
-    if args['clean']:
+    if args["clean"]:
         clean()
+
 
 if __name__ == "__main__":
     main()
