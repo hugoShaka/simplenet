@@ -9,6 +9,8 @@ Usage:
   simplenet switch [--name NAME] --with-ip [(--ip IP --subnet SUBNET | --dhcp)] <interface>...
   simplenet nat <bridge> <destination>
   simplenet clean [--name NAME] [--subnet SUBNET] [--except=<exception>]...
+  simplenet dhcp [--subnet SUBNET] [--gateway GATEWAY] [--dns DNS]...
+  simplenet radius [--secret SECRET] [--credentials CREDENTIALS]
   simplenet -h | --help
   simplenet --version
 
@@ -35,6 +37,7 @@ import logging
 import subprocess
 import ipaddress as ipa
 
+# import jinja2 as j2
 import docopt
 
 
@@ -164,6 +167,8 @@ def main():
     elif args["nat"]:
         nat(args["<bridge>"], args["<destination>"])
 
+    elif args["dhcp"]:
+        dhcp(args["<bridge>"], args["--subnet"], args["--gateway"], args["--dns"])
 
 
 if __name__ == "__main__":
