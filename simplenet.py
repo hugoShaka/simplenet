@@ -90,7 +90,7 @@ def switch(name, interfaces, with_ip, with_dhcp, ip_address, subnet):
     if with_ip:
         if with_dhcp:
             log.info("Acquiring an ip with dhcp")
-            raise NotImplementedError()
+            unix_command("dhclient -v %s" %name)
         else:
             log.info(
                 "Setting ip address %s/%d on bridge %s",
