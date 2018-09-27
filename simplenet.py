@@ -9,7 +9,7 @@ Usage:
   simplenet switch [--name NAME] --with-ip [(--ip IP --subnet SUBNET | --dhcp)] <interface>...
   simplenet nat <bridge> <destination>
   simplenet clean [--name NAME] [--subnet SUBNET] [--except=<exception>]...
-  simplenet dhcp [--subnet SUBNET] [--gateway GATEWAY] [--dns DNS]...
+  simplenet dhcp <bridge> [--subnet SUBNET] [--gateway GATEWAY] [--resolvers DNS]...
   simplenet radius [--secret SECRET] [--credentials CREDENTIALS]
   simplenet -h | --help
   simplenet --version
@@ -36,9 +36,11 @@ Arguments:
 import logging
 import subprocess
 import ipaddress as ipa
+import os
 
-# import jinja2 as j2
+import jinja2 as j2
 import docopt
+import docker
 
 
 def unix_command(command, *, fatal=True):
@@ -90,7 +92,7 @@ def switch(name, interfaces, with_ip, with_dhcp, ip_address, subnet):
     if with_ip:
         if with_dhcp:
             log.info("Acquiring an ip with dhcp")
-            unix_command("dhclient -v %s" %name)
+            unix_command("dhclient -v %s" % name)
         else:
             log.info(
                 "Setting ip address %s/%d on bridge %s",
@@ -116,8 +118,44 @@ def nat(bridge, destination):
 def dhcp(bridge, subnet, gateway, dns):
     """Sets up a DHCP server on a given bridge for a given ip range"""
     log = logging.getLogger()
-    raise NotImplementedError()
-    log.info("Creating DHCP server")
+    working_directory = os.path.dirname(os.path.abspath(__file__))
+    plugin_directory = working_directory + "/plugins/dhcp/"
+    temp_directory = working_directory + "/.tmp"
+
+    assert subnet.num_addresses >= 4
+
+    conf_file = open(".tmp/kea-dhcp4.conf", "w")
+
+    log.info("Generating dhcpd conf with jinja2")
+    j2_env = j2.Environment(
+        loader=j2.FileSystemLoader(plugin_directory), trim_blocks=True
+    )
+    conf = j2_env.get_template("kea-dhcp4.conf.j2").render(
+        bridge=bridge,
+        subnet=subnet,
+        range_start=subnet.network_address + 2,
+        range_end=subnet.network_address + subnet.num_addresses - 2,
+        gateway=gateway,
+        dns=",".join(dns),
+    )
+    conf_file.write(conf)
+    conf_file.close()
+
+    log.info("Creating DHCP server on bridge %s" % bridge)
+    client = docker.from_env()
+    client.containers.run(
+        "simplenet-dhcp",
+        name="simplenet-dhcp",
+        command=["-c", "/etc/kea/kea-dhcp4.conf"],
+        detach=True,
+        ports={'67/udp': 67},
+        network_mode="host",
+        cap_add=["NET_ADMIN"],
+        volumes={
+            "%s/kea-dhcp4.conf"% temp_directory:
+              {"bind": "/etc/kea/kea-dhcp4.conf", "mode": "ro"}
+        },
+    )
 
 
 def clean(name, subnet):
@@ -129,6 +167,7 @@ def clean(name, subnet):
     unix_command("ip link set %s down" % name, fatal=False)
     log.info("Cleaning switch %s", name)
     unix_command("brctl delbr %s" % name, fatal=False)
+    log.info("Stopping kea container")
 
 
 def main():
@@ -168,7 +207,12 @@ def main():
         nat(args["<bridge>"], args["<destination>"])
 
     elif args["dhcp"]:
-        dhcp(args["<bridge>"], args["--subnet"], args["--gateway"], args["--dns"])
+        dhcp(
+            args["<bridge>"],
+            ipa.ip_network(args["--subnet"]),
+            ipa.ip_address(args["--gateway"]),
+            args["--resolvers"],
+        )
 
 
 if __name__ == "__main__":
