@@ -5,9 +5,9 @@ Simple network creation for busy pentesters/sysamdins.
 ## Features
 
 * Bond interfaces and creates a switch between them (to capture traffic without a tap or a hub)
-* Connect to the virtual switch, get an IP (static, dhcp *not yet*)
+* Connect to the virtual switch, get an IP (static or dhcp)
 * Nat the network created by the virtual switch
-* Assign IP addresses on the subnet with DHCP *Not yet*
+* Assign IP addresses on the subnet with DHCP
 * Spins up a radius server *Not yet*
 
 ## Requirements
@@ -15,6 +15,14 @@ Simple network creation for busy pentesters/sysamdins.
 * python3
 * docopts (python library)
 * bridge-utils
+* jinja2
+* docker (for dhcp and radius)
+
+## Install
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Examples
 
@@ -49,4 +57,11 @@ default route.
 ```bash
 ./simplenet.py switch --name switch --with-ip --ip 192.168.2.1 --subnet 192.168.0.0/16 eth0 eth1
 ./simplenet.py nat switch eth2
+```
+
+### Setup a DHCP server
+
+```bash
+./simplenet.py switch --name hello --with-ip --ip 10.0.1.1 --subnet 10.0.1.0/24 enp0s31f6
+./simplenet.py dhcp hello --subnet 10.0.1.0/24 --gateway 10.0.1.1 --resolvers 8.8.8.8
 ```
