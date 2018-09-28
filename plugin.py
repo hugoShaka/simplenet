@@ -1,18 +1,39 @@
-""" Base class for all taemin plugin """
+"""Abstract class for all SimplenetPlugins"""
 
-import docopts
+import os
+import logging
 
-class SimplenetPlugin():
-    helper = {}
+import docopt
 
-    def __init__(self, taemin):
-        self.log = logging.getLogger()
+
+class SimplenetPlugin:
+    """Abstract class for all SimplenetPlugins"""
+
+    name = None
+
+    def __init__(self, plugin_args):
+        """
+        Initialize the plugin
+        :param plugin_args: arguments of the command
+        """
+        # self.name should be defined before calling super()
+        assert self.name is not None
+
+        self.log = logging.getLogger(__name__)
+        self.args = docopt.docopt(self.__doc__, argv=plugin_args)
+        self.pwd = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = self.pwd + "/.tmp"
+        self.plugin_dir = "%s/plugins/%s" % (self.pwd, self.name)
+        self.log.debug(plugin_args)
 
     def start(self):
-        self.log.info("Starting plugin %s", __name__)
+        """Starts the plugin"""
+        raise NotImplementedError
 
     def clean(self):
-        pass
+        """Cleans what the plugin have done"""
+        raise NotImplementedError
 
     def build(self):
-        pass
+        """Build tools needed for the plugin"""
+        raise NotImplementedError
